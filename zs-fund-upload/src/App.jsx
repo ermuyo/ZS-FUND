@@ -22,27 +22,54 @@ export default function App() {
 }
 
 function Login() {
+  const [mode, setMode] = useState('password');   // password | link
   const [email, setEmail] = useState('');
+  const [pw, setPw] = useState('');
   const [state, setState] = useState('idle');
   const [err, setErr] = useState('');
-  const send = async (e) => {
-    e.preventDefault(); setErr(''); setState('sending');
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: window.location.origin } });
-    if (error) { setErr(error.message); setState('idle'); } else setState('sent');
+  const friendly = (m) => /rate limit/i.test(m) ? '登录邮件发送额度已用完，请改用密码登录。' : /Invalid login/i.test(m) ? '邮箱或密码不对。如果是第一次用，点「首次设置密码」。' : /already registered/i.test(m) ? '这个邮箱已经设置过密码，请直接登录。' : /Password should/i.test(m) ? '密码至少 6 位。' : m;
+  const submit = async (e) => {
+    e.preventDefault(); setErr(''); setState('busy');
+    const em = email.trim();
+    if (mode === 'link') {
+      const { error } = await supabase.auth.signInWithOtp({ email: em, options: { emailRedirectTo: window.location.origin } });
+      if (error) { setErr(friendly(error.message)); setState('idle'); } else setState('sent');
+      return;
+    }
+    if (mode === 'signup') {
+      const { data, error } = await supabase.auth.signUp({ email: em, password: pw, options: { emailRedirectTo: window.location.origin } });
+      if (error) { setErr(friendly(error.message)); setState('idle'); return; }
+      if (data.session) return;                      // confirmation disabled: signed in
+      setState('needconfirm'); return;
+    }
+    const { error } = await supabase.auth.signInWithPassword({ email: em, password: pw });
+    if (error) { setErr(friendly(error.message)); setState('idle'); }
   };
+  const title = mode === 'signup' ? '首次设置密码' : '登录';
   return (
     <div className="login"><div className="aurora" />
-      <form className="card" onSubmit={send}>
+      <form className="card" onSubmit={submit}>
         <div className="brand"><i />ZS FUND</div>
         {state === 'sent' ? (
-          <><h3 style={{ margin: 0 }}>查看你的邮箱</h3><p className="muted" style={{ margin: 0 }}>我们给 {email} 发了一封登录邮件，点里面的链接就能进入。可以关掉这个页面。</p>
-            <button type="button" className="back" onClick={() => setState('idle')}>换一个邮箱</button></>
+          <><h3 style={{ margin: 0 }}>查看你的邮箱</h3><p className="muted" style={{ margin: 0 }}>我们给 {email} 发了一封登录邮件，点里面的链接就能进入。</p>
+            <button type="button" className="back" onClick={() => setState('idle')}>返回</button></>
+        ) : state === 'needconfirm' ? (
+          <><h3 style={{ margin: 0 }}>查看你的邮箱</h3><p className="muted" style={{ margin: 0 }}>我们给 {email} 发了一封确认邮件，点里面的链接后就可以用密码登录了。</p>
+            <button type="button" className="back" onClick={() => { setState('idle'); setMode('password'); }}>返回登录</button></>
         ) : (
-          <><h3 style={{ margin: 0 }}>登录</h3><p className="muted" style={{ margin: 0 }}>输入你的邮箱，我们会发一个登录链接，不需要密码。</p>
+          <><h3 style={{ margin: 0 }}>{title}</h3>
+            <p className="muted" style={{ margin: 0 }}>{mode === 'link' ? '输入邮箱，我们会发一个登录链接。' : mode === 'signup' ? '给你的邮箱设一个密码，之后用它登录。' : '用邮箱和密码登录。'}</p>
             <label htmlFor="email" className="small">邮箱</label>
             <input id="email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+            {mode !== 'link' && <><label htmlFor="pw" className="small">密码</label>
+              <input id="pw" type="password" required minLength={6} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={pw} onChange={(e) => setPw(e.target.value)} placeholder={mode === 'signup' ? '至少 6 位' : ''} /></>}
             {err && <div className="dn" style={{ fontSize: 13 }}>{err}</div>}
-            <button className="btn pri" disabled={state === 'sending'}>{state === 'sending' ? '发送中…' : '发送登录链接'}</button></>
+            <button className="btn pri" disabled={state === 'busy'}>{state === 'busy' ? '请稍候…' : mode === 'link' ? '发送登录链接' : mode === 'signup' ? '设置密码并登录' : '登录'}</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+              {mode === 'password' && <button type="button" className="back" onClick={() => { setMode('signup'); setErr(''); }}>首次设置密码</button>}
+              {mode !== 'password' && <button type="button" className="back" onClick={() => { setMode('password'); setErr(''); }}>用密码登录</button>}
+              {mode !== 'link' && <button type="button" className="back" onClick={() => { setMode('link'); setErr(''); }}>改用邮件链接</button>}
+            </div></>
         )}
       </form>
     </div>
