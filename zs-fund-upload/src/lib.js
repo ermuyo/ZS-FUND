@@ -86,6 +86,7 @@ export function search(lib, q) {
   for (const c of lib) {
     let s = 9;
     if (nq && (c.ns === nq || c.base === nq)) s = 0; else if (nq && c.ns.startsWith(nq)) s = 1; else if (c.nl.startsWith(raw)) s = 2; else if (c.nl.includes(raw)) s = 3; else if (c.al.includes(raw)) s = 4; else if (nq.length >= 3 && c.ns.includes(nq)) s = 5;
+    if (s === 0 && c.market !== 'HK' && /^0?\d{1,5}$/.test(raw.replace(/\s/g, ''))) s = 0.5;   // short numeric code: HK first
     if (s < 9) res.push([s, c]);
   }
   res.sort((a, b) => a[0] - b[0] || a[1].rank - b[1].rank);
