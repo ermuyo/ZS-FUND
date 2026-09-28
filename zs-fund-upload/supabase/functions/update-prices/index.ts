@@ -26,6 +26,7 @@ async function crypto(sym: string): Promise<Quote | null> {
 }
 
 function yahooSymbol(sym: string) {
+  if (sym.endsWith(".US")) sym = sym.slice(0, -3);                // BTC.US = US-listed ticker that clashes with a coin symbol
   if (sym.endsWith(".SH")) return sym.replace(".SH", ".SS");
   if (/^[A-Z]+\.[A-Z]$/.test(sym)) return sym.replace(".", "-");   // BRK.B -> BRK-B
   return sym;

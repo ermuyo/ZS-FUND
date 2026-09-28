@@ -79,10 +79,10 @@ function Login() {
 function Main({ session }) {
   const [D, reload] = useData(session);
   const [view, setView] = useState({ v: 'home' });
-  const [ccy, setCcy] = useState(() => { try { return localStorage.getItem('zsfund-ccy') || 'USD'; } catch { return 'USD'; } });
+  const [ccy, setCcy] = useState(() => { try { return localStorage.getItem('zsfund-ccy2') || 'HKD'; } catch { return 'USD'; } });
   const [modal, setModal] = useState(null);
   const [toast, setToast] = useState('');
-  useEffect(() => { try { localStorage.setItem('zsfund-ccy', ccy); } catch { /* ignore */ } }, [ccy]);
+  useEffect(() => { try { localStorage.setItem('zsfund-ccy2', ccy); } catch { /* ignore */ } }, [ccy]);
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(''), 2600); return () => clearTimeout(t); } }, [toast]);
   useEffect(() => { window.scrollTo(0, 0); }, [view.v, view.id]);
 
@@ -107,7 +107,7 @@ function Main({ session }) {
           <nav className="pillnav">{nav.map(([k, n]) => <button key={k} aria-current={cur(k)} onClick={() => setView({ v: k })}>{n}</button>)}</nav>
           <div className="topr">
             <span className="sync"><i /><span>已同步</span></span>
-            <select className="ccy" aria-label="显示币种" value={ccy} onChange={(e) => setCcy(e.target.value)}>{['USD', 'HKD', 'CNY'].map((c) => <option key={c}>{c}</option>)}</select>
+            <select className="ccy" aria-label="显示币种" value={ccy} onChange={(e) => setCcy(e.target.value)}>{['HKD', 'USD', 'CNY'].map((c) => <option key={c}>{c}</option>)}</select>
             <button className="avatar" title={`${session.user.email} · 退出登录`} onClick={() => supabase.auth.signOut()}>{(session.user.email || '?')[0].toUpperCase()}</button>
           </div>
         </header>

@@ -52,11 +52,12 @@ function AddAsset({ D, m, close, toast, reload }) {
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
   useEffect(() => { L.loadLib().then(setLib); }, []);
   const lp = D.accounts.find((a) => a.id === acct)?.type === 'lp';
-  useEffect(() => { if (!pick) return; const isCash = pick.cls === 'cash'; setFund(lp ? (isCash ? 'contrib' : 'cash') : (isCash ? 'none' : 'cash')); const ex = D.instList.find((i) => i.symbol === pick.sym); setMode(ex ? ex.price_mode : (D.settings?.default_modes?.[pick.cls] || 'live')); }, [pick, acct]); // eslint-disable-line
+  useEffect(() => { if (!pick) return; if (pick.byCode) setTcls(pick.cls); const isCash = pick.cls === 'cash'; setFund(lp ? (isCash ? 'contrib' : 'cash') : (isCash ? 'none' : 'cash')); const ex = D.instList.find((i) => i.symbol === pick.sym); setMode(ex ? ex.price_mode : (D.settings?.default_modes?.[pick.cls] || 'live')); }, [pick, acct]); // eslint-disable-line
 
   if (!pick) {
     const { list, total } = lib ? L.search(lib, q) : { list: [], total: 0 };
     const gt = L.guessTicker(q); const showCode = gt && !list.some((c) => c.sym === gt.sym);
+    const coin = q.trim().toUpperCase(); const showCoin = /^[A-Z0-9]{2,10}$/.test(coin) && !list.some((c) => c.sym === coin && c.cls === 'crypto');
     const cashOpts = D.instList.filter((i) => i.class === 'cash').map((i) => ({ sym: i.symbol, name: i.name, cls: 'cash', ccy: i.ccy, market: 'CASH' }));
     const shown = q.trim() ? list : [];
     return (<>
@@ -67,6 +68,7 @@ function AddAsset({ D, m, close, toast, reload }) {
         {total > shown.length && <div className="small">共 {total.toLocaleString()} 个结果，显示最相关的 {shown.length} 个</div>}
         {shown.map((c) => <button key={c.sym} type="button" className="sri" onClick={() => setPick(c)}><span className="sy">{c.sym}</span><span>{c.name}<small>{[L.MARKET_N[c.market], L.CLS[c.cls]?.n, c.ccy].filter(Boolean).join(' · ')}{D.instList.some((i) => i.symbol === c.sym) ? ' · 已在系统中' : ''}</small></span><span className="chip teal">{c.cls === 'crypto' ? '实时' : '延迟 15 分'}</span></button>)}
         {showCode && <button type="button" className="sri dash" onClick={() => setPick({ sym: gt.sym, name: gt.sym, cls: 'stock', ccy: gt.ccy, market: gt.market, byCode: true })}><span className="sy">{gt.sym}</span><span>按代码添加 {gt.sym}<small>{L.MARKET_N[gt.market]} · 标的库里没有，由行情源识别价格</small></span><span className="chip">行情</span></button>}
+        {showCoin && <button type="button" className="sri dash" onClick={() => setPick({ sym: coin, name: coin, cls: 'crypto', ccy: 'USD', market: 'CRYPTO', byCode: true })}><span className="sy">{coin}</span><span>添加为加密货币 {coin}<small>加密 · 标的库里没有，由 Coinbase / OKX 识别价格</small></span><span className="chip teal">实时</span></button>}
         {q.trim() && !shown.length && !showCode && <div className="small" style={{ padding: '4px 2px' }}>没找到「{q}」。换个写法试试，或添加为自定义资产。</div>}
         <button type="button" className="sri dash" onClick={() => setPick({ custom: true })}><span className="sy">+ 自定义</span><span>自定义资产<small>私募、房产、公司股权等，手动估值</small></span><span className="chip">手动</span></button>
       </div>
@@ -125,7 +127,7 @@ function AddAsset({ D, m, close, toast, reload }) {
   return (<form onSubmit={submit} style={{ display: 'contents' }}>
     <h3>添加资产</h3>
     <div className="pick"><div style={{ flexGrow: 1, minWidth: 0 }}><b>{c.byCode ? c.sym : c.name}</b><div className="small">{c.sym} · {[L.MARKET_N[c.market], L.CLS[c.cls]?.n, c.ccy].filter(Boolean).join(' · ')}</div></div>{curPx != null && !isCash && <div className="r"><b>{L.px(curPx, c.ccy)}</b><div className="small">当前价</div></div>}<button type="button" className="back" onClick={() => setPick(null)}>换一个</button></div>
-    {c.byCode && <div className="two" style={{ gap: 10 }}><label>名称（可选）<input value={tname} onChange={(e) => setTname(e.target.value)} placeholder="留空则用代码" /></label><label>类别<select value={tcls} onChange={(e) => setTcls(e.target.value)}><option value="stock">股票</option><option value="etf">ETF</option>{c.market === 'US' && <option value="crypto">加密货币</option>}</select></label></div>}
+    {c.byCode && <div className="two" style={{ gap: 10 }}><label>名称（可选）<input value={tname} onChange={(e) => setTname(e.target.value)} placeholder="留空则用代码" /></label><label>类别<select value={tcls} onChange={(e) => setTcls(e.target.value)}>{c.market === 'CRYPTO' ? <option value="crypto">加密货币</option> : <><option value="stock">股票</option><option value="etf">ETF</option></>}</select></label></div>}
     <AcctSel D={D} v={acct} on={setAcct} />
     {isCash ? <label>金额（{c.ccy}）<input autoFocus type="number" min="0" step="any" required value={qty} onChange={(e) => setQty(e.target.value)} /></label>
       : <div className="two" style={{ gap: 10 }}><label>数量<input autoFocus type="number" min="0" step="any" required value={qty} onChange={(e) => setQty(e.target.value)} /></label><label>成本价（每单位，{c.ccy}）<input type="number" min="0" step="any" value={cost} onChange={(e) => setCost(e.target.value)} placeholder={curPx != null ? '留空 = 当前价' : ''} /></label></div>}
